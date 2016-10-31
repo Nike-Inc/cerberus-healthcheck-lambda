@@ -1,0 +1,20 @@
+{
+  "name": "node-lambda-cerberus-healthcheck",
+  "version": "1.0.0",
+  "description": "Cerberus env healthcheck lambda",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package" : "npm install && mkdir -p build && zip -r build/healthcheck.zip index.js node_modules/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nike-Inc/cerberus-node-client.git"
+  },
+  "author": "Justin Field",
+  "license": "Apache 2.0",
+  "dependencies": {
+    "aws-sdk": "^2.5.5",
+    "request": "^2.74.0"
+  }
+}
