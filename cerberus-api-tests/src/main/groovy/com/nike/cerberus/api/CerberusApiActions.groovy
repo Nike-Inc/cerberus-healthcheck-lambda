@@ -364,7 +364,7 @@ class CerberusApiActions {
                 .post(V1_SAFE_DEPOSIT_BOX_PATH)
         .then()
                 .statusCode(201)
-                .header('X-Refresh-Token', 'true')
+                .header('X-Refresh-Token', 'false')
                 .header('Location', not(isEmptyOrNullString()))
                 .assertThat().body(matchesJsonSchemaInClasspath("json-schema/$V1_SAFE_DEPOSIT_BOX_PATH/create_success.json"))
         .extract().
@@ -394,7 +394,7 @@ class CerberusApiActions {
                 .post(V2_SAFE_DEPOSIT_BOX_PATH)
             .then()
                 .statusCode(201)
-                .header('X-Refresh-Token', 'true')
+                .header('X-Refresh-Token', 'false')
                 .header('Location', not(isEmptyOrNullString()))
                 .assertThat().body(matchesJsonSchemaInClasspath("json-schema/$V2_SAFE_DEPOSIT_BOX_PATH/create_success.json"))
             .extract().
@@ -433,7 +433,7 @@ class CerberusApiActions {
             .put("$V1_SAFE_DEPOSIT_BOX_PATH/${sdbId}")
         .then()
             .statusCode(204)
-            .header('X-Refresh-Token', 'true')
+            .header('X-Refresh-Token', 'false')
 
     }
 
@@ -457,7 +457,7 @@ class CerberusApiActions {
             .put("$V2_SAFE_DEPOSIT_BOX_PATH/${sdbId}")
         .then()
             .statusCode(200)
-            .header('X-Refresh-Token', 'true')
+            .header('X-Refresh-Token', 'false')
             .assertThat().body(matchesJsonSchemaInClasspath("json-schema/$V2_SAFE_DEPOSIT_BOX_PATH/read_success.json"))
         .extract().
             body().jsonPath()
@@ -470,7 +470,7 @@ class CerberusApiActions {
                 .delete("${baseSdbApiPath}/${sdbId}")
             .then()
                 .statusCode(200)
-                .header('X-Refresh-Token', 'true')
+                .header('X-Refresh-Token', 'false')
     }
 
     static JsonPath getRoles(String cerberusAuthToken) {
