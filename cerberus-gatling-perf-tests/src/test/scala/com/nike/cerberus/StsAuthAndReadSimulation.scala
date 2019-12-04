@@ -51,7 +51,7 @@ import scala.util.control.NonFatal
 /**
   * Simulation that will create a bunch of SDBs with random secrets and IAM Principals will authenticate and read secrets
   */
-class IamPrincipalAuthAndReadSimulation extends Simulation {
+class StsAuthAndReadSimulation extends Simulation {
 
   // Sessions keys
   private val ROLE_NAME = "role_name"
@@ -60,6 +60,7 @@ class IamPrincipalAuthAndReadSimulation extends Simulation {
   private val SDB_DATA_PATH = "sdb_root_path"
   private val REGION = "region"
   private val MAX_RETRY = 10
+  private val MAX_COOL_DOWN = 1 minutes
 
   private val generatedData = ArrayBuffer[Map[String, String]]()
   private var iam: AmazonIdentityManagementClient = _
@@ -228,8 +229,7 @@ class IamPrincipalAuthAndReadSimulation extends Simulation {
     }
 
     try {
-      val data = CerberusApiActions.retrieveIamAuthToken(arn, region, false)
-      data.asInstanceOf[LazyMap].get("client_token").asInstanceOf[String]
+      CerberusApiActions.retrieveStsAuthToken(region).asInstanceOf[String]
     } catch {
       case t: Throwable =>
         throw new IllegalStateException(s"Failed to authenticate with cerberus using arn: $arn, region: $region", t)
@@ -310,8 +310,7 @@ class IamPrincipalAuthAndReadSimulation extends Simulation {
     scenario("Iam principal authenticates and then reads secrets")
     .feed(generatedData.random)
     .exec(
-      authenticate_and_fetch_encrypted_iam_auth_payload_and_store_in_session,
-      decrypt_auth_payload_with_kms_and_store_auth_token_in_session,
+      authenticate_and_fetch_sts_auth_token_and_store_in_session,
       list_all_the_node_keys_for_the_root_sdb_path_and_store_keys_in_session,
       read_data_from_each_node
     )
@@ -325,7 +324,9 @@ class IamPrincipalAuthAndReadSimulation extends Simulation {
       rampUsersPerSec(1) to peakUsers / numberOfLoadServers during(rampUpTimeInMinutes minutes),
       constantUsersPerSec(peakUsers / numberOfLoadServers) during(holdTimeAfterPeakInMinutes minutes)
     )
-  ).protocols(httpConf)
+  )
+    .protocols(httpConf)
+    .maxDuration((rampUpTimeInMinutes + holdTimeAfterPeakInMinutes minutes) + MAX_COOL_DOWN)
 
   /**
     * After the simulation is run, delete the randomly created data.

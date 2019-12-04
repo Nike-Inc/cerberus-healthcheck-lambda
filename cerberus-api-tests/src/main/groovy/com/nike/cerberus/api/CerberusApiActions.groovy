@@ -1,7 +1,12 @@
 package com.nike.cerberus.api
 
+import com.amazonaws.DefaultRequest
+import com.amazonaws.auth.AWS4Signer
+import com.amazonaws.auth.AWSCredentials
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.internal.securitytoken.RoleInfo
 import com.amazonaws.auth.profile.internal.securitytoken.STSProfileCredentialsServiceProvider
+import com.amazonaws.http.HttpMethodName
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.kms.AWSKMSClient
 import com.amazonaws.services.kms.model.DecryptRequest
@@ -109,6 +114,30 @@ class CerberusApiActions {
         // decrypt the payload
         String base64EncodedKmsEncryptedAuthPayload = response.body().jsonPath().getString("auth_data")
         return getDecryptedPayload(String.format("arn:aws:iam::%s:role/%s", accountId, roleName), region, base64EncodedKmsEncryptedAuthPayload, assumeRole)
+    }
+
+    /**
+     * Authenticates with Cerberus's STS auth endpoint get token
+     *
+     * @param region The region to do iam auth with
+     * @return The authentication token
+     */
+    static def retrieveStsAuthToken(String region) {
+        Response response =
+                given()
+                        .headers(getSignedHeaders(region))
+                        .contentType("application/json")
+                        .when()
+                        .post("/v2/auth/sts-identity")
+                        .then()
+                        .statusCode(200)
+                        .contentType("application/json")
+                        .assertThat().body(matchesJsonSchemaInClasspath("json-schema/v1/auth/iam-role-decrypted.json"))
+                        .extract().
+                        response()
+
+        String cerberusToken = response.body().jsonPath().getString("client_token")
+        return cerberusToken
     }
 
     static def retrieveIamAuthToken(String iamPrincipalArn, String region, boolean assumeRole = true) {
@@ -640,5 +669,41 @@ class CerberusApiActions {
         }
 
         return catMap
+    }
+
+    static Map<String, String> getSignedHeaders(String regionName){
+
+        final String url = "https://sts." + regionName + ".amazonaws.com";
+
+        URI endpoint = null;
+
+        try {
+            endpoint = new URI(url);
+        } catch (URISyntaxException e) {
+            System.err.println(String.format("URL is not formatted correctly"), e);
+
+        }
+
+        Map<String, List<String>> parameters = new HashMap<>();
+        parameters.put("Action", Arrays.asList("GetCallerIdentity"));
+        parameters.put("Version", Arrays.asList("2011-06-15"));
+
+        DefaultRequest<String> requestToSign = new DefaultRequest<>("sts");
+        requestToSign.setParameters(parameters);
+        requestToSign.setHttpMethod(HttpMethodName.POST);
+        requestToSign.setEndpoint(endpoint);
+
+        System.out.println(String.format("Signing request with [%s] as host", url));
+
+        signRequest(requestToSign, DefaultAWSCredentialsProviderChain.getInstance().getCredentials(), regionName)
+
+        return requestToSign.getHeaders();
+    }
+
+    static signRequest(com.amazonaws.Request request, AWSCredentials credentials, String regionName){
+        AWS4Signer signer = new AWS4Signer();
+        signer.setRegionName(regionName);
+        signer.setServiceName("sts");
+        signer.sign(request, credentials);
     }
 }
